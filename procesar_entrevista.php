@@ -1,5 +1,5 @@
 <?php
-// procesar_entrevista.php - Versión nativa REST (Sin dependencias de Composer)
+// procesar_entrevista.php - Versión nativa REST
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     try {
@@ -19,17 +19,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             throw new Exception("El archivo de credenciales JSON está incompleto o es inválido.");
         }
 
-        // 2. Generar un Token de Acceso OAuth 2.0 usando JWT firmado con la llave privada
+        // 2. Generar un Token de Acceso OAuth 2.0
         $token = generarAccessTokenJWT($clientEmail, $privateKey);
 
         if (!$token) {
             throw new Exception("No se pudo generar el token de autenticación para Firebase.");
         }
 
-        // 3. Recoger los datos del formulario de la entrevista
+        // 3. Recoger los datos del formulario
         $matricula = trim($_POST['matricula'] ?? 'sin_matricula');
-        
+        $rasgos = isset($_POST['rasgos']) ? implode(', ', $_POST['rasgos']) : 'Ninguno';
+
         $datosEntrevista = [
+            // SECCIÓN 1
             'nombre'             => ['stringValue' => $_POST['nombre'] ?? ''],
             'matricula'          => ['stringValue' => $matricula],
             'programa_educativo' => ['stringValue' => $_POST['programa_educativo'] ?? ''],
@@ -39,40 +41,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'telefono'           => ['stringValue' => $_POST['telefono'] ?? ''],
             'direccion'          => ['stringValue' => $_POST['direccion'] ?? ''],
             'nombre_tutor'       => ['stringValue' => $_POST['nombre_tutor'] ?? ''],
+
+            // SECCIÓN 2
             'reside_ciudad'      => ['stringValue' => $_POST['reside_ciudad'] ?? ''],
             'vive_con'           => ['stringValue' => $_POST['vive_con'] ?? ''],
             'trabaja'            => ['stringValue' => $_POST['trabaja'] ?? ''],
+            'detalles_trabajo'   => ['stringValue' => $_POST['detalles_trabajo'] ?? ''],
+            'dependencia_economica' => ['stringValue' => $_POST['dependencia_economica'] ?? ''],
             'ingreso_familiar'   => ['stringValue' => $_POST['ingreso_familiar'] ?? ''],
+            'ocupacion_papa'     => ['stringValue' => $_POST['ocupacion_papa'] ?? ''],
+            'ocupacion_mama'     => ['stringValue' => $_POST['ocupacion_mama'] ?? ''],
+            'hermanos'           => ['stringValue' => $_POST['hermanos'] ?? ''],
             'tipo_casa'          => ['stringValue' => $_POST['tipo_casa'] ?? ''],
+
+            // SECCIÓN 3
             'enfermedades'       => ['stringValue' => $_POST['enfermedades'] ?? ''],
+            'frecuencia_enfermedades' => ['stringValue' => $_POST['frecuencia_enfermedades'] ?? ''],
+            'rasgos'             => ['stringValue' => $rasgos],
+            'medicamentos'       => ['stringValue' => $_POST['medicamentos'] ?? ''],
             'fuma'               => ['stringValue' => $_POST['fuma'] ?? ''],
             'alcohol'            => ['stringValue' => $_POST['alcohol'] ?? ''],
             'cualidades'         => ['stringValue' => $_POST['cualidades'] ?? ''],
+            'defectos'           => ['stringValue' => $_POST['defectos'] ?? ''],
+            'valores'            => ['stringValue' => $_POST['valores'] ?? ''],
+            'disgusta'           => ['stringValue' => $_POST['disgusta'] ?? ''],
+            'temores'            => ['stringValue' => $_POST['temores'] ?? ''],
+            'novio'              => ['stringValue' => $_POST['novio'] ?? ''],
+            'planes_matrimonio'  => ['stringValue' => $_POST['planes_matrimonio'] ?? ''],
+            'planes_futuro'      => ['stringValue' => $_POST['planes_futuro'] ?? ''],
+            'planes_academico'   => ['stringValue' => $_POST['planes_academico'] ?? ''],
+            'planes_profesional' => ['stringValue' => $_POST['planes_profesional'] ?? ''],
+            'tiempo_libre'       => ['stringValue' => $_POST['tiempo_libre'] ?? ''],
+
+            // SECCIÓN 4
             'bachillerato'       => ['stringValue' => $_POST['bachillerato'] ?? ''],
+            'turno'              => ['stringValue' => $_POST['turno'] ?? ''],
+            'localidad'          => ['stringValue' => $_POST['localidad'] ?? ''],
+            'entidad'            => ['stringValue' => $_POST['entidad'] ?? ''],
             'promedio'           => ['stringValue' => $_POST['promedio'] ?? ''],
+            'porque_universidad' => ['stringValue' => $_POST['porque_universidad'] ?? ''],
+            'primera_opcion'     => ['stringValue' => $_POST['primera_opcion'] ?? ''],
+            'carrera_primera_opcion' => ['stringValue' => $_POST['carrera_primera_opcion'] ?? ''],
+            'esperas_carrera'    => ['stringValue' => $_POST['esperas_carrera'] ?? ''],
+            'planes_otra_escuela' => ['stringValue' => $_POST['planes_otra_escuela'] ?? ''],
             'materias_dificiles' => ['stringValue' => $_POST['materias_dificiles'] ?? ''],
             'reprobado'          => ['stringValue' => $_POST['reprobado'] ?? ''],
+            'tecnica_estudio'    => ['stringValue' => $_POST['tecnica_estudio'] ?? ''],
+            'libros_casa'        => ['stringValue' => $_POST['libros_casa'] ?? ''],
+            'tiene_computadora'  => ['stringValue' => $_POST['tiene_computadora'] ?? ''],
+            
             'fecha_registro'     => ['stringValue' => date('Y-m-d H:i:s')]
         ];
 
-        // Estructura requerida por la API REST de Firestore
-        $documentoFirestore = [
-            'fields' => $datosEntrevista
-        ];
+        $documentoFirestore = [ 'fields' => $datosEntrevista ];
 
-        // 4. Enviar los datos a Firestore (Usando PATCH para actualizar si ya existe)
+        // 4. Enviar los datos a Firestore
         $url = "https://firestore.googleapis.com/v1/projects/{$projectId}/databases/(default)/documents/entrevistas/" . urlencode($matricula);
 
         $ch = curl_init($url);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PATCH'); // CAMBIO CLAVE: PATCH en vez de POST
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, 'PATCH');
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($documentoFirestore));
         curl_setopt($ch, CURLOPT_HTTPHEADER, [
             'Authorization: Bearer ' . $token,
             'Content-Type: application/json'
         ]);
 
-        // Arreglo del SSL para la petición de Firestore
         if ($_SERVER['SERVER_NAME'] === 'localhost' || $_SERVER['SERVER_NAME'] === '127.0.0.1') {
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
             curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
@@ -83,21 +117,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $curlError = curl_error($ch);
         curl_close($ch);
 
-        // PANTALLA DE ÉXITO PERSONALIZADA
+        // PANTALLA DE ÉXITO
         if ($httpCode >= 200 && $httpCode < 300) {
             echo "<!DOCTYPE html>
             <html lang='es'>
             <head>
                 <meta charset='UTF-8'>
-                <meta name='viewport' content='width=device-width, initial-scale=1.0'>
                 <title>Registro Exitoso</title>
                 <style>
-                    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+                    body { font-family: 'Segoe UI', sans-serif; background-color: #f4f7f6; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
                     .card { background: white; padding: 40px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; max-width: 400px; }
                     .icon { font-size: 60px; color: #28a745; margin-bottom: 20px; }
                     h2 { color: #333; margin-bottom: 10px; }
-                    p { color: #666; font-size: 16px; margin-bottom: 30px; line-height: 1.5; }
-                    .btn { background-color: #007bff; color: white; text-decoration: none; padding: 12px 25px; border-radius: 8px; font-weight: bold; transition: background 0.3s; display: inline-block; }
+                    p { color: #666; font-size: 16px; margin-bottom: 30px; }
+                    .btn { background-color: #007bff; color: white; text-decoration: none; padding: 12px 25px; border-radius: 8px; font-weight: bold; display: inline-block; }
                     .btn:hover { background-color: #0056b3; }
                 </style>
             </head>
@@ -117,7 +150,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     } catch (\Exception $e) {
         echo "<div style='font-family: Arial; padding: 20px; color: #721c24; background-color: #f8d7da; border: 1px solid #f5c6cb;'>";
-        echo "<h3>Ocurrió un error al procesar la entrevista:</h3>";
+        echo "<h3>Ocurrió un error:</h3>";
         echo "<p>" . htmlspecialchars($e->getMessage()) . "</p>";
         echo "<br><a href='index.php'>Regresar al formulario</a>";
         echo "</div>";
@@ -127,9 +160,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     exit();
 }
 
-/**
- * Función auxiliar para generar un Token OAuth 2.0 firmado mediante JWT usando la clave privada de Google
- */
 function generarAccessTokenJWT($clientEmail, $privateKey) {
     $header = json_encode(['alg' => 'RS256', 'typ' => 'JWT']);
     $now = time();
@@ -150,7 +180,6 @@ function generarAccessTokenJWT($clientEmail, $privateKey) {
     $base64UrlSignature = str_replace(['+', '/', '='], ['-', '_', ''], base64_encode($signature));
     $jwt = $base64UrlHeader . "." . $base64UrlPayload . "." . $base64UrlSignature;
 
-    // Solicitar el token a Google
     $ch = curl_init('https://oauth2.googleapis.com/token');
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_POST, true);
@@ -159,7 +188,6 @@ function generarAccessTokenJWT($clientEmail, $privateKey) {
         'assertion'  => $jwt
     ]));
     
-    // ESTO ARREGLA EL ERROR SSL EN LOCAL PARA EL TOKEN
     if ($_SERVER['SERVER_NAME'] === 'localhost' || $_SERVER['SERVER_NAME'] === '127.0.0.1') {
         curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
         curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
